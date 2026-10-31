@@ -1,0 +1,14 @@
+
+    _______ __
+   / ____(_) /_  ___  _____
+  / /_  / / __ \/ _ \/ ___/
+ / __/ / / /_/ /  __/ /
+/_/   /_/_.___/\___/_/          v3.4.0
+--------------------------------------------------
+INFO Server started on: 	http://127.0.0.1:8001 (bound on host 0.0.0.0 and port 8001)
+INFO Application name: 		Gemini Go API (HTTP/3 QUIC + Gemini Models + Arranger Engine)
+INFO Total handlers: 		40
+INFO Prefork: 			Disabled
+INFO PID: 			7468
+INFO Total process count: 	1
+

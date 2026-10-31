@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Gemini Cookie Sync",
+  "version": "1.2.0",
+  "description": "Streams Google/Gemini cookies to the local free-gemini-api server over its WebSocket bridge. Ignores volatile cookies to avoid feedback loops.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "gemini-cookie-sync@local.freegeminiapi",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  },
+  "permissions": ["cookies", "storage", "alarms"],
+  "host_permissions": [
+    "*://*.google.com/*",
+    "*://*.googleusercontent.com/*",
+    "ws://127.0.0.1:9226/*",
+    "ws://localhost:9226/*"
+  ],
+  "background": { "scripts": ["background.js"] },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Gemini Cookie Sync"
+  }
+}

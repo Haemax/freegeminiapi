@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "DeepSeek API Sync Agent",
+  "version": "1.0.0",
+  "description": "Auto-syncs DeepSeek web sessions and JWT tokens to your local Free API server",
+  "permissions": ["cookies", "storage", "alarms", "scripting"],
+  "host_permissions": [
+    "*://*[.deepseek.com/](https://.deepseek.com/)*",
+    "[http://127.0.0.1:8001/](http://127.0.0.1:8001/)*",
+    "http://localhost:8001/*",
+    "ws://127.0.0.1:9226/*",
+    "ws://localhost:9226/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://[chat.deepseek.com/](https://chat.deepseek.com/)*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "DeepSeek Api Agent",
+    "default_icon": "icon.png"
+  }
+}

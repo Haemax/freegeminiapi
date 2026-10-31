@@ -1,0 +1,12 @@
+2026/10/28 13:05:44 ⚠️  No .env file found, using system environment variables
+2026/10/28 13:05:44 🗄️  SQLite Database initialized successfully at data/gemini.db (WAL Mode)
+2026/10/28 13:05:44 🛡️ Passive Cookie Health Monitor started (logs status every 30m, on-demand sync only)
+2026/10/28 13:05:44 📡 Cookie WebSocket Server listening on 0.0.0.0:9226
+2026/10/28 13:05:44 Loading cookies in JSON array format (17 cookies)
+2026/10/28 13:05:44 ⚡ [Zero-Wait Instant Start] Loaded cached session for cookies\session_account_ga000EAlFK.json (Tier: free, 0s bootstrap!)
+2026/10/28 13:05:44 🚀 [WorkerPool] Registered new Account Worker [ga000EAlFK] (Tier: subscription) from cookies\account_ga000EAlFK.json
+2026/10/28 13:05:44 🌐 [GeminiClient] Running in Guest/Anonymous mode (no cookies required).
+2026/10/28 13:05:44 🌐 [GeminiClient] Initialized in Guest / Anonymous Mode (no login required for Free tier models).
+2026/10/28 13:05:44 🌐 [WorkerPool] Registered Guest Worker [guest] (Tier: free) — Ready out-of-the-box without login!
+2026/10/28 13:05:44 ✨ [WorkerPool] Pool reloaded: 2 active account worker(s) available
+2026/10/28 13:05:44 🚀 Free Gemini API Server starting on port :8001 (HTTP/3 QUIC enabled)...

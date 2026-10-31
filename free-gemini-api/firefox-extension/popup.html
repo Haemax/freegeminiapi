@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font: 13px/1.4 system-ui, sans-serif; width: 340px; padding: 12px; margin: 0; }
+    h3 { margin: 0 0 8px; font-size: 14px; }
+    label { display: block; margin: 8px 0 4px; color: #444; }
+    input { width: 100%; box-sizing: border-box; padding: 6px; font: inherit; }
+    .row { display: flex; gap: 8px; margin-top: 10px; }
+    button { flex: 1; padding: 6px 10px; font: inherit; cursor: pointer; }
+    #status { margin-top: 10px; color: #555; word-break: break-word; }
+  </style>
+</head>
+<body>
+  <h3>Gemini Cookie Sync</h3>
+  <label for="endpoint">Server endpoint</label>
+  <input id="endpoint" type="url" placeholder="http://127.0.0.1:8001/api/cookies">
+  <div class="row">
+    <button id="save">Save</button>
+    <button id="sync">Sync now</button>
+  </div>
+  <p id="status">Loadingâ€¦</p>
+  <script src="popup.js"></script>
+</body>
+</html>
