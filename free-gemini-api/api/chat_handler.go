@@ -128,7 +128,11 @@ func HandleUnifiedChat(c fiber.Ctx) error {
 		UserSessions.Delete(sessionID)
 	}
 
-	modelCfg := gemini.GetModelRegistry().Resolve(reqModel)
+	modelCfg, err := gemini.GetModelRegistry().ResolveStrict(reqModel)
+	if err != nil {
+		log.Printf("❌ [Chat] Rejected unknown model: %v", err)
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
 	model := modelCfg.ID
 	requiredTier := modelCfg.MinTier
 	pool := GetWorkerPool()
@@ -351,7 +355,11 @@ func HandleOpenAIChatCompletions(c fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Messages array is empty"})
 	}
 
-	modelCfg := gemini.GetModelRegistry().Resolve(req.Model)
+	modelCfg, err := gemini.GetModelRegistry().ResolveStrict(req.Model)
+	if err != nil {
+		log.Printf("❌ [OpenAI] Rejected unknown model: %v", err)
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
 	model := modelCfg.ID
 	requiredTier := modelCfg.MinTier
 

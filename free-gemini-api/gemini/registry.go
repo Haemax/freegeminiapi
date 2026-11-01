@@ -251,32 +251,6 @@ var defaultBuiltinModels = []ModelConfig{
 		Source:         "builtin",
 	},
 	{
-		ID:             "deepseek-v3",
-		DisplayName:    "DeepSeek V3 (MoE)",
-		Description:    "Flagship Mixture-of-Experts language model",
-		ModeID:         "deepseek-chat",
-		HeaderTemplate: "",
-		ThinkingLevel:  0,
-		MinTier:        "free",
-		Aliases:        []string{"deepseek-chat", "v3"},
-		Capabilities:   []string{"chat", "stream", "code"},
-		IsDefault:      false,
-		Source:         "builtin",
-	},
-	{
-		ID:             "deepseek-r1",
-		DisplayName:    "DeepSeek R1 (Reasoner)",
-		Description:    "Deep reasoning model with step-by-step thinking traces",
-		ModeID:         "deepseek-reasoner",
-		HeaderTemplate: "",
-		ThinkingLevel:  0,
-		MinTier:        "free",
-		Aliases:        []string{"deepseek-reasoner", "r1"},
-		Capabilities:   []string{"chat", "stream", "code", "thinking"},
-		IsDefault:      false,
-		Source:         "builtin",
-	},
-	{
 		ID:             "gemini-3.8-thinking",
 		DisplayName:    "Google Gemini 3.8 Flash Thinking",
 		Description:    "Deep reasoning with step-by-step thinking scratchpad trace",
@@ -354,85 +328,101 @@ func (r *ModelRegistry) Unregister(id string) {
 	_ = r.saveToFileInternal()
 }
 
-// Resolve looks up a model by ID or alias, falling back to default model
+// Resolve looks up a model by ID or alias, falling back to the default model.
 func (r *ModelRegistry) Resolve(name string) *ModelConfig {
+	if m, ok := r.resolveNoFallback(name); ok {
+		return m
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if def, ok := r.models[r.defaultModel]; ok {
+		return def
+	}
+	for _, m := range r.models {
+		return m
+	}
+	return &defaultBuiltinModels[0]
+}
+
+// ResolveStrict resolves a model name and reports unknown IDs as an error
+// instead of silently serving a different model. An empty name still
+// resolves to the default model.
+func (r *ModelRegistry) ResolveStrict(name string) (*ModelConfig, error) {
+	if strings.TrimSpace(name) == "" {
+		return r.Resolve(""), nil
+	}
+	if m, ok := r.resolveNoFallback(name); ok {
+		return m, nil
+	}
+	return nil, fmt.Errorf("unknown model %q", name)
+}
+
+// resolveNoFallback performs ID, alias and convenience substring matching
+// without falling back to the default model.
+func (r *ModelRegistry) resolveNoFallback(name string) (*ModelConfig, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	clean := strings.ToLower(strings.TrimSpace(name))
 	if clean == "" {
-		if def, ok := r.models[r.defaultModel]; ok {
-			return def
-		}
-		// Fallback to first available
-		for _, m := range r.models {
-			return m
-		}
+		return nil, false
 	}
 
-	// 1. Direct ID match
 	if m, ok := r.models[clean]; ok {
-		return m
+		return m, true
 	}
-
-	// 2. Direct Alias match
 	if canonicalID, ok := r.aliasMap[clean]; ok {
 		if m, ok := r.models[canonicalID]; ok {
-			return m
+			return m, true
 		}
 	}
 
-	// 3. Substring matching for convenience
 	if strings.Contains(clean, "argon") {
 		if strings.Contains(clean, "high") || strings.Contains(clean, "3") {
 			if m, ok := r.models["gemini-4-argon-thinking-high"]; ok {
-				return m
+				return m, true
 			}
 		}
 		if strings.Contains(clean, "med") || strings.Contains(clean, "2") {
 			if m, ok := r.models["gemini-4-argon-thinking-medium"]; ok {
-				return m
+				return m, true
 			}
 		}
 		if strings.Contains(clean, "low") || strings.Contains(clean, "1") {
 			if m, ok := r.models["gemini-4-argon-thinking-low"]; ok {
-				return m
+				return m, true
 			}
 		}
 		if m, ok := r.models["gemini-4-argon"]; ok {
-			return m
+			return m, true
 		}
 	}
 	if strings.Contains(clean, "lite") {
 		if m, ok := r.models["gemini-3.5-flash-lite"]; ok {
-			return m
+			return m, true
 		}
 	}
 	if strings.Contains(clean, "pro") {
 		if canonicalID, ok := r.aliasMap["pro"]; ok {
 			if m, ok := r.models[canonicalID]; ok {
-				return m
+				return m, true
 			}
 		}
 	}
 	if strings.Contains(clean, "thinking") {
 		if canonicalID, ok := r.aliasMap["thinking"]; ok {
 			if m, ok := r.models[canonicalID]; ok {
-				return m
+				return m, true
 			}
 		}
 	}
 	if strings.Contains(clean, "flash") {
 		if m, ok := r.models["gemini-3.8-flash"]; ok {
-			return m
+			return m, true
 		}
 	}
 
-	// Fallback to default
-	if def, ok := r.models[r.defaultModel]; ok {
-		return def
-	}
-	return &defaultBuiltinModels[0]
+	return nil, false
 }
 
 // Get looks up a model by ID or alias without fallback

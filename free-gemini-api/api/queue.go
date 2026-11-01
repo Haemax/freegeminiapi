@@ -165,7 +165,10 @@ func (p *WorkerPool) ReloadPool() {
 			log.Printf("⚠️ [WorkerPool] Could not initialize client for %s: %v", cFile, err)
 			continue
 		}
-		_ = client.InitSession()
+		if err := client.InitSession(); err != nil {
+			log.Printf("⚠️ [WorkerPool] Session init failed for %s: %v", accID, err)
+			continue
+		}
 
 		workerTier := client.AccountTier
 		if workerTier == "" {
@@ -181,7 +184,7 @@ func (p *WorkerPool) ReloadPool() {
 		}
 		updatedWorkers = append(updatedWorkers, worker)
 		_ = db.RecordAccountUsage(accID, cFile, "active", client.AccountTier)
-		log.Printf("🚀 [WorkerPool] Registered new Account Worker [%s] (Tier: %s) from %s", accID, worker.Tier, cFile)
+		log.Printf("🚀 [WorkerPool] Registered new Account Worker [%s] (Tier: %s) from %s - Ready to serve requests", accID, worker.Tier, cFile)
 	}
 
 	// Ensure a Guest Worker is available for zero-login free requests or as fallback
@@ -195,7 +198,9 @@ func (p *WorkerPool) ReloadPool() {
 	if !hasGuest {
 		guestClient, err := gemini.NewClient("guest")
 		if err == nil {
-			_ = guestClient.InitSession()
+			if err := guestClient.InitSession(); err != nil {
+				log.Printf("⚠️ [WorkerPool] Guest session init failed: %v", err)
+			}
 			guestWorker := &AccountWorker{
 				ID:         "guest",
 				CookiePath: "guest",

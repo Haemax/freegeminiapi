@@ -11,7 +11,7 @@ type OpenAIToolCallFunction struct {
 }
 
 // OpenAIToolCall is used in non-streaming messages (Index nil, omitted) and in
-// streaming deltas (Index MUST be set â€” the OpenAI spec and harnesses such as
+// streaming deltas (Index MUST be set — the OpenAI spec and harnesses such as
 // DeepSeek Harness / the OpenAI SDK reject or mis-parse deltas without it).
 type OpenAIToolCall struct {
 	Index    *int                   `json:"index,omitempty"`
@@ -21,19 +21,19 @@ type OpenAIToolCall struct {
 }
 
 type OpenAIContentPart struct {
-	Type string `json:"type"`
-	Text string `json:"text,omitempty"`
+	Type     string `json:"type"`
+	Text     string `json:"text,omitempty"`
+	ImageURL string `json:"image_url,omitempty"`
 }
 
 type OpenAIChatMessage struct {
 	Role             string           `json:"role"`
-	Content          *string          `json:"content"`
+	Content          *string          `json:"content,omitempty"`
 	ReasoningContent *string          `json:"reasoning_content,omitempty"`
 	Name             string           `json:"name,omitempty"`
 	ToolCallID       string           `json:"tool_call_id,omitempty"`
 	ToolCalls        []OpenAIToolCall `json:"tool_calls,omitempty"`
 }
-
 // UnmarshalJSON accepts content as a string, null, or an array of parts
 // ({"type":"text","text":"..."}). DeepSeek Harness and the OpenAI SDK send
 // part arrays for multimodal turns; the previous *string field returned 400.

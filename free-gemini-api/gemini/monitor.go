@@ -478,12 +478,6 @@ func StartCookieWebSocketServer(port int) {
 				}
 			}
 
-			if msg.Type == "deepseek_session_payload" {
-				err := SaveDeepSeekSession(msg.UserToken, msg.Cookies)
-				if err != nil {
-					log.Printf("❌ Failed to process DeepSeek session: %v", err)
-				}
-			}
 		}
 	})
 
@@ -498,16 +492,4 @@ func StartCookieWebSocketServer(port int) {
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Printf("⚠️ Cookie WebSocket Server warning: %v", err)
 	}
-}
-
-func SaveDeepSeekSession(token string, cookies []CookieObject) error {
-	data := map[string]interface{}{
-		"user_token": token,
-		"cookies":    cookies,
-		"updated_at": time.Now().Unix(),
-	}
-	bytes, _ := json.MarshalIndent(data, "", "  ")
-	path := filepath.Join("cookies", "deepseek_account.json")
-	log.Printf("💾 Stored DeepSeek account profile: %s", path)
-	return os.WriteFile(path, bytes, 0644)
-}
+}
