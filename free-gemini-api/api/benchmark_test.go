@@ -36,7 +36,7 @@ func BenchmarkChatCompletion_FreeModels(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				start := time.Now()
-				resp, err := client.AskModel(prompt, modelCfg.ID)
+				resp, err := client.AskModel(prompt, modelCfg.ID, "bench-session")
 				elapsed := time.Since(start)
 
 				if err != nil {

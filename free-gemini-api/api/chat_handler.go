@@ -187,7 +187,7 @@ func HandleUnifiedChat(c fiber.Ctx) error {
 					data, _ := json.Marshal(fiber.Map{"text": chunk})
 					fmt.Fprintf(w, "data: %s\n\n", data)
 					w.Flush()
-				})
+				}, sessionID)
 				streamResp = sr
 				if err != nil && emitted {
 					err = &StreamStartedError{Err: err}
@@ -268,9 +268,9 @@ func HandleUnifiedChat(c fiber.Ctx) error {
 	resp, err := pool.ExecuteQueuedWithTier(ctx, sessionID, requiredTier, func(w *AccountWorker) (*gemini.GeminiResponse, error) {
 		usedWorker = w
 		if len(images) > 0 {
-			return w.Client.AskWithImagesModel(prompt, images, model)
+			return w.Client.AskWithImagesModel(prompt, images, model, sessionID)
 		}
-		return w.Client.AskModel(prompt, model)
+		return w.Client.AskModel(prompt, model, sessionID)
 	})
 
 	if err != nil {
@@ -493,7 +493,7 @@ func HandleOpenAIChatCompletions(c fiber.Ctx) error {
 						ID: chunkID, Object: "chat.completion.chunk", Created: createdTime, Model: model,
 						Choices: []OpenAIStreamChoice{{Index: 0, Delta: delta}},
 					})
-				})
+				}, sessionID)
 				streamResp = sr
 				if err != nil && emitted {
 					err = &StreamStartedError{Err: err}
@@ -632,7 +632,7 @@ func HandleOpenAIChatCompletions(c fiber.Ctx) error {
 	var usedWorker *AccountWorker
 	resp, err := pool.ExecuteQueuedWithTier(ctx, sessionID, requiredTier, func(w *AccountWorker) (*gemini.GeminiResponse, error) {
 		usedWorker = w
-		return w.Client.AskModel(askPrompt, model)
+		return w.Client.AskModel(askPrompt, model, sessionID)
 	})
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {

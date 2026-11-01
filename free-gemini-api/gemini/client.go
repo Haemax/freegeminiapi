@@ -140,29 +140,13 @@ func (c *GeminiClient) getAccountPrefix() string {
 	return ""
 }
 
-func (c *GeminiClient) getConvState(modelID string) (string, string, string) {
-	c.convMu.Lock()
-	defer c.convMu.Unlock()
-	if c.convStates == nil {
-		c.convStates = make(map[string]*ModelConversationState)
-	}
-	if state, ok := c.convStates[modelID]; ok && state != nil {
-		return state.ConversationID, state.ResponseID, state.ChoiceID
-	}
-	return c.ConversationID, c.ResponseID, c.ChoiceID
+func (c *GeminiClient) getConvState(sessionID, modelID string) (string, string, string) {
+	return c.GetConvState(sessionID, modelID)
 }
 
-func (c *GeminiClient) updateConvState(modelID, convID, respID, choiceID string) {
-	c.convMu.Lock()
-	defer c.convMu.Unlock()
-	if c.convStates == nil {
-		c.convStates = make(map[string]*ModelConversationState)
-	}
-	c.convStates[modelID] = &ModelConversationState{
-		ConversationID: convID,
-		ResponseID:     respID,
-		ChoiceID:       choiceID,
-	}
+func (c *GeminiClient) updateConvState(sessionID, modelID, convID, respID, choiceID string) {
+	c.SetConvState(sessionID, modelID, convID, respID, choiceID)
+	// Also update flat fields for backward compatibility
 	c.ConversationID = convID
 	c.ResponseID = respID
 	c.ChoiceID = choiceID
@@ -497,26 +481,26 @@ func (c *GeminiClient) executeWithRetry(actionName string, runFunc func() error)
 }
 
 func (c *GeminiClient) Ask(prompt string) (*GeminiResponse, error) {
-	return c.AskModel(prompt, "")
+	return c.AskModel(prompt, "", "")
 }
 
-func (c *GeminiClient) AskModel(prompt string, modelName string) (*GeminiResponse, error) {
-	return c.AskWithToolModel(prompt, "", modelName)
+func (c *GeminiClient) AskModel(prompt string, modelName string, sessionID string) (*GeminiResponse, error) {
+	return c.AskWithToolModel(prompt, "", modelName, sessionID)
 }
 
 // AskStream sends a prompt and streams text chunks via callback as they arrive
 func (c *GeminiClient) AskStream(prompt string, onChunk func(text string)) (*GeminiResponse, error) {
-	return c.AskStreamModel(prompt, "", onChunk)
+	return c.AskStreamModel(prompt, "", onChunk, "")
 }
 
 // AskStreamModel streams with a specific target model
-func (c *GeminiClient) AskStreamModel(prompt string, modelName string, onChunk func(text string)) (*GeminiResponse, error) {
+func (c *GeminiClient) AskStreamModel(prompt string, modelName string, onChunk func(text string), sessionID string) (*GeminiResponse, error) {
 	start := time.Now()
 	
 	var response *GeminiResponse
 	execErr := c.executeWithRetry("AskStream", func() error {
 		var err error
-		response, err = c.executeStreamRequest(prompt, modelName, onChunk)
+		response, err = c.executeStreamRequest(prompt, modelName, onChunk, sessionID)
 		return err
 	})
 
@@ -529,7 +513,7 @@ func (c *GeminiClient) AskStreamModel(prompt string, modelName string, onChunk f
 }
 
 // executeStreamRequest performs the actual streaming call with HTTP/2
-func (c *GeminiClient) executeStreamRequest(prompt string, modelName string, onChunk func(text string)) (*GeminiResponse, error) {
+func (c *GeminiClient) executeStreamRequest(prompt string, modelName string, onChunk func(text string), sessionID string) (*GeminiResponse, error) {
 	if err := c.ensureInit(); err != nil {
 		return nil, err
 	}
@@ -539,7 +523,7 @@ func (c *GeminiClient) executeStreamRequest(prompt string, modelName string, onC
 	c.ReqID += 100
 	reqID := fmt.Sprintf("%d", c.ReqID)
 
-	convID, respID, choiceID := c.getConvState(modelCfg.ID)
+	convID, respID, choiceID := c.getConvState(sessionID, modelCfg.ID)
 
 	msgInner := []interface{}{prompt, 0, nil, []interface{}{}, nil, nil, 0}
 	msgLang := []string{"en-GB"}
@@ -579,7 +563,7 @@ func (c *GeminiClient) executeStreamRequest(prompt string, modelName string, onC
 	parseResponse(rawBody, response)
 
 	if response.ConversationID != "" {
-		c.updateConvState(modelCfg.ID, response.ConversationID, response.ResponseID, response.ChoiceID)
+		c.updateConvState(sessionID, modelCfg.ID, response.ConversationID, response.ResponseID, response.ChoiceID)
 	}
 
 	// Video auto-detect
@@ -747,14 +731,14 @@ type ImageInput struct {
 }
 
 func (c *GeminiClient) AskWithImage(prompt string, imageBytes []byte, filename string, mimeType string) (*GeminiResponse, error) {
-	return c.AskWithImagesModel(prompt, []ImageInput{{Data: imageBytes, Filename: filename, MimeType: mimeType}}, "")
+	return c.AskWithImagesModel(prompt, []ImageInput{{Data: imageBytes, Filename: filename, MimeType: mimeType}}, "", "")
 }
 
 func (c *GeminiClient) AskWithImages(prompt string, images []ImageInput) (*GeminiResponse, error) {
-	return c.AskWithImagesModel(prompt, images, "")
+	return c.AskWithImagesModel(prompt, images, "", "")
 }
 
-func (c *GeminiClient) AskWithImagesModel(prompt string, images []ImageInput, modelName string) (*GeminiResponse, error) {
+func (c *GeminiClient) AskWithImagesModel(prompt string, images []ImageInput, modelName string, sessionID string) (*GeminiResponse, error) {
 	start := time.Now()
 
 	if err := c.ensureInit(); err != nil {
@@ -792,7 +776,7 @@ func (c *GeminiClient) AskWithImagesModel(prompt string, images []ImageInput, mo
 	var response *GeminiResponse
 	var err error
 	execErr := c.executeWithRetry("AskWithImages", func() error {
-		_, response, err = c.sendRequest(prompt, "", imageRef, modelCfg)
+		_, response, err = c.sendRequest(prompt, "", imageRef, modelCfg, sessionID)
 		if err != nil {
 			return err
 		}
@@ -807,7 +791,7 @@ func (c *GeminiClient) AskWithImagesModel(prompt string, images []ImageInput, mo
 	}
 
 	if response.ConversationID != "" {
-		c.updateConvState(modelCfg.ID, response.ConversationID, response.ResponseID, response.ChoiceID)
+		c.updateConvState(sessionID, modelCfg.ID, response.ConversationID, response.ResponseID, response.ChoiceID)
 	}
 
 	// Auto-detect video generation and poll for video URL
@@ -913,10 +897,10 @@ func (c *GeminiClient) pollVideoURL(response *GeminiResponse) {
 }
 
 func (c *GeminiClient) AskWithTool(prompt string, tool string) (*GeminiResponse, error) {
-	return c.AskWithToolModel(prompt, tool, "")
+	return c.AskWithToolModel(prompt, tool, "", "")
 }
 
-func (c *GeminiClient) AskWithToolModel(prompt string, tool string, modelName string) (*GeminiResponse, error) {
+func (c *GeminiClient) AskWithToolModel(prompt string, tool string, modelName string, sessionID string) (*GeminiResponse, error) {
 	start := time.Now()
 	if err := c.ensureInit(); err != nil {
 		return nil, err
@@ -927,7 +911,7 @@ func (c *GeminiClient) AskWithToolModel(prompt string, tool string, modelName st
 	var response *GeminiResponse
 	var err error
 	execErr := c.executeWithRetry("AskWithTool", func() error {
-		_, response, err = c.sendRequest(prompt, tool, nil, modelCfg)
+		_, response, err = c.sendRequest(prompt, tool, nil, modelCfg, sessionID)
 		if err != nil {
 			return err
 		}
@@ -942,7 +926,7 @@ func (c *GeminiClient) AskWithToolModel(prompt string, tool string, modelName st
 	}
 
 	if response.ConversationID != "" {
-		c.updateConvState(modelCfg.ID, response.ConversationID, response.ResponseID, response.ChoiceID)
+		c.updateConvState(sessionID, modelCfg.ID, response.ConversationID, response.ResponseID, response.ChoiceID)
 	}
 
 	// Music fallback: if URL didn't come in first response, quick poll
@@ -990,6 +974,10 @@ func (c *GeminiClient) AskWithToolModel(prompt string, tool string, modelName st
 // AskVideo generates a video via chat prompt and polls hNvQHb for download URL.
 // Flow: sendRequest(prompt) → poll hNvQHb(convID) for contribution.usercontent URL
 func (c *GeminiClient) AskVideo(prompt string) (*GeminiResponse, error) {
+	return c.AskVideoSession(prompt, "")
+}
+
+func (c *GeminiClient) AskVideoSession(prompt string, sessionID string) (*GeminiResponse, error) {
 	start := time.Now()
 	if err := c.ensureInit(); err != nil {
 		return nil, err
@@ -1006,7 +994,7 @@ func (c *GeminiClient) AskVideo(prompt string) (*GeminiResponse, error) {
 	var response *GeminiResponse
 	var err error
 	execErr := c.executeWithRetry("AskVideo", func() error {
-		_, response, err = c.sendRequest(prompt, "", nil, modelCfg)
+		_, response, err = c.sendRequest(prompt, "", nil, modelCfg, sessionID)
 		if err != nil {
 			return err
 		}
@@ -1021,7 +1009,7 @@ func (c *GeminiClient) AskVideo(prompt string) (*GeminiResponse, error) {
 	}
 
 	if response.ConversationID != "" {
-		c.updateConvState(modelCfg.ID, response.ConversationID, response.ResponseID, response.ChoiceID)
+		c.updateConvState(sessionID, modelCfg.ID, response.ConversationID, response.ResponseID, response.ChoiceID)
 	}
 
 	log.Printf("🎬 Video response: conv=%s, text=%s", response.ConversationID, response.Text[:min(len(response.Text), 100)])
@@ -1100,14 +1088,14 @@ func (c *GeminiClient) pollConversation(convID string) (string, error) {
 	return c.CallRPC("hNvQHb", payload)
 }
 
-func (c *GeminiClient) sendRequest(prompt string, tool string, imageRef []interface{}, modelCfg *ModelConfig) (string, *GeminiResponse, error) {
+func (c *GeminiClient) sendRequest(prompt string, tool string, imageRef []interface{}, modelCfg *ModelConfig, sessionID string) (string, *GeminiResponse, error) {
 	if modelCfg == nil {
 		modelCfg = GetModelRegistry().Resolve("")
 	}
 	c.ReqID += 100
 	reqID := fmt.Sprintf("%d", c.ReqID)
 
-	convID, respID, choiceID := c.getConvState(modelCfg.ID)
+	convID, respID, choiceID := c.getConvState(sessionID, modelCfg.ID)
 
 	imagesPayload := imageRef
 	if imagesPayload == nil {

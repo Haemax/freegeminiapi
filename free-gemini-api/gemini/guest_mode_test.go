@@ -23,7 +23,7 @@ func TestGuestModeWithoutLogin(t *testing.T) {
 		t.Fatalf("Failed to init guest session: %v", err)
 	}
 
-	resp, err := client.AskWithToolModel("Reply with 'Guest Mode OK' and nothing else.", "", "3.5-flash-lite")
+	resp, err := client.AskWithToolModel("Reply with 'Guest Mode OK' and nothing else.", "", "3.5-flash-lite", "")
 	if err != nil {
 		t.Fatalf("Guest AskWithToolModel failed: %v", err)
 	}

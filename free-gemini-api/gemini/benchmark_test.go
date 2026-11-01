@@ -31,7 +31,7 @@ func BenchmarkAllModels_GuestMode(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				start := time.Now()
-				resp, err := client.AskModel(prompt, modelCfg.ID)
+				resp, err := client.AskModel(prompt, modelCfg.ID, "bench-session")
 				elapsed := time.Since(start)
 
 				if err != nil {
@@ -87,7 +87,7 @@ func BenchmarkModel_Streaming(b *testing.B) {
 				firstChunkTime = time.Since(start)
 			}
 			chunkCount++
-		})
+		}, "bench-session")
 		elapsed := time.Since(start)
 
 		if err != nil {
