@@ -23,12 +23,13 @@ type OpenAIToolCall struct {
 type OpenAIContentPart struct {
 	Type     string `json:"type"`
 	Text     string `json:"text,omitempty"`
-	ImageURL string `json:"image_url,omitempty"`
+	ImageURL any    `json:"image_url,omitempty"`
 }
 
 type OpenAIChatMessage struct {
-	Role             string           `json:"role"`
-	Content          *string          `json:"content,omitempty"`
+	Role             string              `json:"role"`
+	Content          *string             `json:"content,omitempty"`
+	Parts            []OpenAIContentPart `json:"-"`
 	ReasoningContent *string          `json:"reasoning_content,omitempty"`
 	Name             string           `json:"name,omitempty"`
 	ToolCallID       string           `json:"tool_call_id,omitempty"`
@@ -54,17 +55,17 @@ func (m *OpenAIChatMessage) UnmarshalJSON(data []byte) error {
 	m.Name = raw.Name
 	m.ToolCallID = raw.ToolCallID
 	m.ToolCalls = raw.ToolCalls
-	m.Content = parseMessageContent(raw.Content)
+	m.Content, m.Parts = parseMessageContentWithParts(raw.Content)
 	return nil
 }
 
-func parseMessageContent(raw json.RawMessage) *string {
+func parseMessageContentWithParts(raw json.RawMessage) (*string, []OpenAIContentPart) {
 	if len(raw) == 0 || string(raw) == "null" {
-		return nil
+		return nil, nil
 	}
 	var s string
 	if err := json.Unmarshal(raw, &s); err == nil {
-		return &s
+		return &s, nil
 	}
 	var parts []OpenAIContentPart
 	if err := json.Unmarshal(raw, &parts); err == nil {
@@ -75,10 +76,10 @@ func parseMessageContent(raw json.RawMessage) *string {
 			}
 		}
 		out := b.String()
-		return &out
+		return &out, parts
 	}
 	out := string(raw)
-	return &out
+	return &out, nil
 }
 
 type OpenAIStreamOptions struct {

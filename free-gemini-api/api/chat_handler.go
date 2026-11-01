@@ -3,6 +3,7 @@ package api
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"goapi/db"
@@ -372,6 +373,7 @@ func HandleOpenAIChatCompletions(c fiber.Ctx) error {
 	var prompt string
 	hasToolResults := false
 	var fullPromptBuilder strings.Builder
+	var images []gemini.ImageInput
 
 	for _, m := range req.Messages {
 		contentStr := ""
@@ -382,6 +384,41 @@ func HandleOpenAIChatCompletions(c fiber.Ctx) error {
 		case "user":
 			prompt = contentStr
 			fullPromptBuilder.WriteString("User: " + contentStr + "\n")
+			for _, p := range m.Parts {
+				if p.Type == "image_url" && p.ImageURL != nil {
+					var urlStr string
+					if m, ok := p.ImageURL.(map[string]any); ok {
+						if u, ok := m["url"].(string); ok {
+							urlStr = u
+						}
+					} else if s, ok := p.ImageURL.(string); ok {
+						urlStr = s
+					}
+					if strings.HasPrefix(urlStr, "data:") {
+						commaIdx := strings.Index(urlStr, ",")
+						if commaIdx != -1 {
+							b64Data := urlStr[commaIdx+1:]
+							mimeType := strings.TrimSuffix(strings.TrimPrefix(urlStr[:commaIdx], "data:"), ";base64")
+							ext := ".jpg"
+							switch mimeType {
+							case "image/png":
+								ext = ".png"
+							case "image/webp":
+								ext = ".webp"
+							case "image/gif":
+								ext = ".gif"
+							}
+							if raw, err := base64.StdEncoding.DecodeString(b64Data); err == nil {
+								images = append(images, gemini.ImageInput{
+									Data:     raw,
+									MimeType: mimeType,
+									Filename: fmt.Sprintf("image_%d%s", len(images), ext),
+								})
+							}
+						}
+					}
+				}
+			}
 		case "assistant":
 			if len(m.ToolCalls) > 0 {
 				tcJSON, _ := json.Marshal(m.ToolCalls)
@@ -435,7 +472,7 @@ func HandleOpenAIChatCompletions(c fiber.Ctx) error {
 
 	pool := GetWorkerPool()
 
-	if req.Stream {
+	if req.Stream && len(images) == 0 {
 		c.Set("Content-Type", "text/event-stream")
 		c.Set("Cache-Control", "no-cache")
 		c.Set("Connection", "keep-alive")
@@ -632,6 +669,9 @@ func HandleOpenAIChatCompletions(c fiber.Ctx) error {
 	var usedWorker *AccountWorker
 	resp, err := pool.ExecuteQueuedWithTier(ctx, sessionID, requiredTier, func(w *AccountWorker) (*gemini.GeminiResponse, error) {
 		usedWorker = w
+		if len(images) > 0 {
+			return w.Client.AskWithImagesModel(askPrompt, images, model, sessionID)
+		}
 		return w.Client.AskModel(askPrompt, model, sessionID)
 	})
 	if err != nil {
